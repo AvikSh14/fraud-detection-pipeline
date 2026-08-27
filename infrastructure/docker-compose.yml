@@ -1,0 +1,41 @@
+# No "version:" key — obsolete in Compose v2 and triggers a warning.
+
+services:
+  kafka:
+    image: confluentinc/cp-kafka:7.8.0
+    container_name: kafka          # fixes the network hostname to "kafka" (used in advertised listeners below)
+    ports:
+      - "9092:9092"                # publish ONLY the EXTERNAL listener to your Mac. 9093 (controller) stays internal.
+    environment:
+      # ---------- KRaft: this node is both broker and controller ----------
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093   # "<node id>@<host>:<port>" — the controller election roster
+      CLUSTER_ID: fraud-pipeline-local-0001      # must stay constant; changing it after first boot = broker won't start
+
+      # ---------- Listeners ----------
+      # KAFKA_LISTENERS  = sockets Kafka opens (bind addresses). 0.0.0.0 = all interfaces inside the container.
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      # KAFKA_ADVERTISED_LISTENERS = addresses Kafka hands back to clients to reconnect with. THE thing that trips people up.
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      # Every listener name must map to a security protocol. All PLAINTEXT (no TLS/auth) for local dev.
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      # Which listener brokers use to talk to each other, and which one is the controller.
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      # ---------- Single-node dev settings ----------
+      # Internal topics normally want 3 replicas; we have 1 node, so force everything to 1.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      # Don't wait for a phantom cluster to settle before serving consumer groups.
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Force yourself to create topics explicitly (teaches partitions/replication). Flip to "true" if it annoys you.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+
+    volumes:
+      - kafka-data:/var/lib/kafka/data   # named volume: survives "restart", wiped by "down -v"
+
+volumes:
+  kafka-data:
