@@ -6,7 +6,7 @@ kotlin = "2.2.21"
 guava = "33.4.6-jre"
 junit-jupiter-engine = "5.12.1"
 kafka = "3.8.1"
-slf4j = "1.7.36"
+slf4j = "2.0.18"
 kotlinx-serialization-json = "1.8.1"
 
 [libraries]
