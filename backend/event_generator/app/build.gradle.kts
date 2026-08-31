@@ -29,6 +29,9 @@ dependencies {
 
     // This dependency is used by the application.
     implementation(libs.guava)
+
+    implementation(libs.kafka.clients)
+    runtimeOnly(libs.slf4j.simple)
 }
 
 // Apply a specific Java toolchain to ease working on different environments.

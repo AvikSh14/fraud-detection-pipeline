@@ -4,10 +4,14 @@
 [versions]
 guava = "33.4.6-jre"
 junit-jupiter-engine = "5.12.1"
+kafka = "3.8.1"
+slf4j = "1.7.36"
 
 [libraries]
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit-jupiter-engine" }
+kafka-clients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka" }
+slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version = "2.2.21" }
