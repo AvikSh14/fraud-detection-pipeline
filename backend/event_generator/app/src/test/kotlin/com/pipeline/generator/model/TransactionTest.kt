@@ -1,6 +1,6 @@
-package com.pipeline.generator
+package com.pipeline.generator.model
 
-import kotlinx.serialization.encodeToString
+import com.pipeline.generator.generator.TransactionGenerator
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals

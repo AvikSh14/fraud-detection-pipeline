@@ -1,5 +1,6 @@
-package com.pipeline.generator
+package com.pipeline.generator.generator
 
+import com.pipeline.generator.model.Transaction
 import java.util.UUID
 import kotlin.random.Random
 
