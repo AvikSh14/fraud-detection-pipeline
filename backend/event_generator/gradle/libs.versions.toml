@@ -2,12 +2,12 @@
 # https://docs.gradle.org/current/userguide/version_catalogs.html#sec::toml-dependencies-format
 
 [versions]
-kotlin = "2.2.21"
-guava = "33.4.6-jre"
+kotlin = "2.4.10"
+guava = "33.7.1-jre"
 junit-jupiter-engine = "5.12.1"
 kafka = "3.8.1"
 slf4j = "1.7.36"
-kotlinx-serialization-json = "1.8.1"
+kotlinx-serialization-json = "1.11.0"
 
 [libraries]
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
