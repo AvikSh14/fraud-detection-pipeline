@@ -4,3 +4,6 @@ build/
 .gradle/
 .next/
 .env*
+
+# Personal study notes — kept local, never pushed to the public repo
+/notes/
