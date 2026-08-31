@@ -1,4 +1,4 @@
-package com.pipeline.generator
+package com.pipeline.generator.model
 
 import kotlinx.serialization.Serializable
 

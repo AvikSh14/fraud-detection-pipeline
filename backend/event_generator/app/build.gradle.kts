@@ -20,20 +20,19 @@ repositories {
 }
 
 dependencies {
-    // Use the Kotlin Test integration.
-    testImplementation("org.jetbrains.kotlin:kotlin-test")
-
-    // Use the JUnit 5 integration.
-    testImplementation(libs.junit.jupiter.engine)
-
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-
     // This dependency is used by the application.
-    implementation(libs.guava)
-
     implementation(libs.kafka.clients)
-    runtimeOnly(libs.slf4j.simple)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.hoplite.core)
+    implementation(libs.hoplite.hocon)
+    implementation(libs.kotlin.logging)
+    runtimeOnly(libs.logback.classic)
+
+    testImplementation(kotlin("test"))
+    testImplementation(libs.junit.jupiter.engine)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
