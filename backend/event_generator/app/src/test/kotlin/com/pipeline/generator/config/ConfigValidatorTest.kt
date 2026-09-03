@@ -1,7 +1,7 @@
 package com.pipeline.generator.config
 
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
+import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
