@@ -11,7 +11,6 @@ data class KafkaConfig(
     val bootstrapServers: String,
     val topic: String,
     val clientIdPrefix: String,
-    val acks: String,
     val lingerMs: Int,
 )
 

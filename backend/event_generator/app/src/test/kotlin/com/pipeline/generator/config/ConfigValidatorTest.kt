@@ -14,7 +14,6 @@ class ConfigValidatorTest {
             bootstrapServers = "localhost:9092",
             topic = "transactions",
             clientIdPrefix = "event-generator",
-            acks = "all",
             lingerMs = 20,
         ),
         simulation = SimulationConfig(
