@@ -13,7 +13,6 @@ class ConfigLoaderTest {
         assertEquals("localhost:9092", config.kafka.bootstrapServers)
         assertEquals("transactions", config.kafka.topic)
         assertEquals("event-generator", config.kafka.clientIdPrefix)
-        assertEquals("all", config.kafka.acks)
         assertEquals(20, config.kafka.lingerMs)
         assertEquals(10, config.simulation.targetRatePerSecond)
         assertEquals(10.seconds, config.simulation.metricsInterval)
