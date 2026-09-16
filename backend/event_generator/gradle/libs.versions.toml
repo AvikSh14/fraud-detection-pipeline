@@ -4,7 +4,7 @@
 [versions]
 kotlin = "2.2.21"
 junit-jupiter-engine = "5.12.1"
-kafka = "3.8.1"
+kafka = "4.3.1"
 kotlinx-serialization-json = "1.8.1"
 kotlinx-coroutines = "1.10.2"
 hoplite = "2.9.0"
