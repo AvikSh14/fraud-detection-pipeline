@@ -36,6 +36,21 @@ services:
 
     volumes:
       - kafka-data:/var/lib/kafka/data   # named volume: survives "restart", wiped by "down -v"
+  
+  postgres:
+    image: postgres:16               # pinned major version — "latest" can silently jump versions and break the on-disk format
+    container_name: postgres         # fixes the network hostname to "postgres" (for when api_service is containerized too)
+    ports:
+      - "5432:5432"                  # publish to your Mac — api_service runs outside Docker for now and connects via localhost
+    environment:
+      # First-boot only: the postgres image reads these three vars once to create the database, user, and password.
+      # Later runs reuse whatever's already in the postgres-data volume and ignore these.
+      POSTGRES_DB: fraud_pipeline
+      POSTGRES_USER: fraud_pipeline
+      POSTGRES_PASSWORD: fraud_pipeline   # local dev only — plaintext here, not a real secret; don't reuse this value anywhere real
+    volumes:
+      - postgres-data:/var/lib/postgresql/data   # named volume: survives "restart", wiped by "down -v" (same pattern as kafka-data)
 
 volumes:
   kafka-data:
+  postgres-data:
