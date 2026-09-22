@@ -41,7 +41,7 @@ services:
     image: postgres:16               # pinned major version — "latest" can silently jump versions and break the on-disk format
     container_name: postgres         # fixes the network hostname to "postgres" (for when api_service is containerized too)
     ports:
-      - "5432:5432"                  # publish to your Mac — api_service runs outside Docker for now and connects via localhost
+      - "5433:5432"                  # publish to your Mac — api_service runs outside Docker for now and connects via localhost
     environment:
       # First-boot only: the postgres image reads these three vars once to create the database, user, and password.
       # Later runs reuse whatever's already in the postgres-data volume and ignore these.
