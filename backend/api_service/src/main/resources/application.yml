@@ -1,3 +1,10 @@
 spring:
   application:
     name: api-service
+  datasource:
+    url: jdbc:postgresql://localhost:5433/fraud_pipeline
+    username: fraud_pipeline
+    password: fraud_pipeline
+  jpa:
+    hibernate:
+      ddl-auto: validate
