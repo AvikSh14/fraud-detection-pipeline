@@ -7,10 +7,10 @@ import java.util.UUID
 // Postgres TIMESTAMPTZ keeps microseconds; truncating keeps values equal after a round trip
 fun nowInMicros(): Instant = Instant.now().truncatedTo(ChronoUnit.MICROS)
 
-fun newAlert(status: AlertStatus = AlertStatus.NEW): Alert {
+fun newAlert(status: AlertStatus = AlertStatus.NEW, id: UUID = UUID.randomUUID()): Alert {
     val now = nowInMicros()
     return Alert(
-        id = UUID.randomUUID(),
+        id = id,
         transactionReference = "txn-ref",
         riskScore = 0.56,
         status = status,
