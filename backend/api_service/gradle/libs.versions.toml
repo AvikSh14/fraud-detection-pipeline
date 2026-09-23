@@ -2,6 +2,7 @@
 kotlin = "2.3.21"
 springBoot = "4.1.1"
 springDependencyManagement = "1.1.7"
+testcontainers = "1.20.4"
 
 [libraries]
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
@@ -14,8 +15,13 @@ kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5", versi
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
 postgresql = { module = "org.postgresql:postgresql" }
-flyway-core = { module = "org.flywaydb:flyway-core" }
+spring-boot-starter-flyway = { module = "org.springframework.boot:spring-boot-starter-flyway" }
 flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql" }
+testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
+testcontainers-postgresql = { module = "org.testcontainers:postgresql" }
+testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter" }
+spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-testcontainers" }
+spring-boot-starter-data-jpa-test = { module = "org.springframework.boot:spring-boot-starter-data-jpa-test" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
