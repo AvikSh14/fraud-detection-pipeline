@@ -34,7 +34,6 @@ dependencies {
 	testImplementation(libs.kotlin.test.junit5)
 	testImplementation(platform(libs.testcontainers.bom))
 	testImplementation(libs.testcontainers.postgresql)
-	testImplementation(libs.testcontainers.junit.jupiter)
 	testImplementation(libs.spring.boot.testcontainers)
 	testImplementation(libs.spring.boot.starter.data.jpa.test)
 	testRuntimeOnly(libs.junit.platform.launcher)
@@ -48,4 +47,7 @@ kotlin {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+	testLogging {
+		events("passed", "skipped", "failed")
+	}
 }
