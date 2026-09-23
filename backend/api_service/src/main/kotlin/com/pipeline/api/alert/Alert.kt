@@ -6,6 +6,7 @@ import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import jakarta.persistence.Version
 import java.time.Instant
 import java.util.UUID
 
@@ -30,4 +31,11 @@ class Alert(
 
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant
-)
+) {
+    // Optimistic locking: Hibernate sets 0 on insert, increments on each update, and rejects stale writes.
+    // Null means "never saved", so Spring Data persists instead of merging; only Hibernate sets it.
+    @Version
+    @Column(name = "version", nullable = false)
+    var version: Long? = null
+        protected set
+}
