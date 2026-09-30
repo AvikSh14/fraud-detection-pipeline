@@ -81,4 +81,51 @@ class AlertStatusHistoryRepositoryTest {
             // Postgres names a foreign key "<table>_<column>_fkey"
             .hasMessageContaining("alert_status_history_alert_id_fkey")
     }
+
+    @Test
+    fun `saving a history row with a reused row id fails instead of overwriting the original`() {
+        val originalChange = savedStatusChange()
+        testEntityManager.clear()
+
+        val conflictingChange = newStatusChange(
+            alert = originalChange.alert,
+            previousStatus = AlertStatus.IN_REVIEW,
+            newStatus = AlertStatus.FALSE_POSITIVE,
+            id = originalChange.id
+        )
+
+        assertThatThrownBy { alertStatusHistoryRepository.saveAndFlush(conflictingChange) }
+            .isInstanceOf(DataIntegrityViolationException::class.java)
+            .hasMessageContaining("alert_status_history_pkey")
+    }
+
+    @Test
+    fun `database rejects updating a status change`() {
+        val statusChange = savedStatusChange()
+
+        assertThatThrownBy {
+            jdbcTemplate.update(
+                "UPDATE alert_status_history SET changed_by = ? WHERE id = ?",
+                "attacker@example.com",
+                statusChange.id
+            )
+        }.isInstanceOf(DataIntegrityViolationException::class.java)
+            .hasMessageContaining("alert_status_history rows are immutable")
+    }
+
+    @Test
+    fun `database still allows deleting a status change for retention`() {
+        val statusChange = savedStatusChange()
+
+        val deletedRowCount = jdbcTemplate.update("DELETE FROM alert_status_history WHERE id = ?", statusChange.id)
+
+        assertThat(deletedRowCount).isEqualTo(1)
+    }
+
+    private fun savedStatusChange(): AlertStatusHistory {
+        val alert = alertRepository.saveAndFlush(newAlert())
+        return alertStatusHistoryRepository.saveAndFlush(
+            newStatusChange(alert = alert, previousStatus = AlertStatus.NEW, newStatus = AlertStatus.IN_REVIEW)
+        )
+    }
 }
