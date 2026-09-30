@@ -23,9 +23,10 @@ fun newStatusChange(
     alert: Alert,
     previousStatus: AlertStatus,
     newStatus: AlertStatus,
-    changedAt: Instant = nowInMicros()
+    changedAt: Instant = nowInMicros(),
+    id: UUID = UUID.randomUUID(),
 ) = AlertStatusHistory(
-    id = UUID.randomUUID(),
+    id = id,
     alert = alert,
     previousStatus = previousStatus,
     newStatus = newStatus,

@@ -9,6 +9,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
+import org.springframework.data.domain.Persistable
 import java.time.Instant
 import java.util.UUID
 
@@ -16,7 +17,7 @@ import java.util.UUID
 @Table(name = "alert_status_history")
 class AlertStatusHistory(
     @Id
-    val id: UUID,
+    private val id: UUID,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "alert_id", nullable = false)
@@ -35,4 +36,8 @@ class AlertStatusHistory(
 
     @Column(name = "changed_at", nullable = false)
     val changedAt: Instant
-)
+) : Persistable<UUID> {
+    override fun getId(): UUID = id
+
+    override fun isNew(): Boolean = true
+}
