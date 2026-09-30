@@ -1,5 +1,8 @@
 package com.pipeline.api.alert
 
+import com.pipeline.api.alert.domain.Alert
+import com.pipeline.api.alert.domain.AlertStatus
+import com.pipeline.api.alert.domain.AlertStatusHistory
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.UUID

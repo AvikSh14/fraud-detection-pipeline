@@ -1,4 +1,4 @@
-package com.pipeline.api.alert
+package com.pipeline.api.alert.domain
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity

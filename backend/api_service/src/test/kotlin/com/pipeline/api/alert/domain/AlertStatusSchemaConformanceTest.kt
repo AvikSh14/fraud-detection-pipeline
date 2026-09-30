@@ -1,4 +1,4 @@
-package com.pipeline.api.alert
+package com.pipeline.api.alert.domain
 
 import com.pipeline.api.PostgresRepositoryTest
 import org.assertj.core.api.Assertions.assertThat
