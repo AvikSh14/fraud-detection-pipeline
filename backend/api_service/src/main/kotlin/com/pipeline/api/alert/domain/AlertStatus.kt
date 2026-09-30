@@ -1,4 +1,4 @@
-package com.pipeline.api.alert
+package com.pipeline.api.alert.domain
 
 enum class AlertStatus {
     NEW,

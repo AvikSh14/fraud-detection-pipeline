@@ -1,6 +1,9 @@
-package com.pipeline.api.alert
+package com.pipeline.api.alert.repository
 
 import com.pipeline.api.PostgresRepositoryTest
+import com.pipeline.api.alert.domain.Alert
+import com.pipeline.api.alert.domain.AlertStatus
+import com.pipeline.api.alert.newAlert
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.springframework.beans.factory.annotation.Autowired

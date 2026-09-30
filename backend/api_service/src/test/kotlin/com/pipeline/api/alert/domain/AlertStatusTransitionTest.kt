@@ -1,4 +1,4 @@
-package com.pipeline.api.alert
+package com.pipeline.api.alert.domain
 
 import org.assertj.core.api.Assertions.assertThat
 import kotlin.test.Test
