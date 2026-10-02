@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      backend-modules: ${{ steps.backend.outputs.changes }}
+      dashboard: ${{ steps.dashboard.outputs.dashboard }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v3
+        id: backend
+        with:
+          filters: |
+            api_service: ['backend/api_service/**', '.github/workflows/ci.yml']
+            event_generator: ['backend/event_generator/**', '.github/workflows/ci.yml']
+            flink_processor: ['backend/flink_processor/**', '.github/workflows/ci.yml']
+      - uses: dorny/paths-filter@v3
+        id: dashboard
+        with:
+          filters: |
+            dashboard: ['dashboard/**', '.github/workflows/ci.yml']
+
+  backend:
+    needs: changes
+    if: needs.changes.outputs.backend-modules != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJSON(needs.changes.outputs.backend-modules) }}
+    defaults:
+      run:
+        working-directory: backend/${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v5
+      - run: ./gradlew build
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ matrix.module }}
+          path: backend/${{ matrix.module }}/**/build/reports/tests/
+
+  dashboard:
+    needs: changes
+    if: needs.changes.outputs.dashboard == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: dashboard/.nvmrc
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  ci-result:
+    needs: [changes, backend, dashboard]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any job failed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
