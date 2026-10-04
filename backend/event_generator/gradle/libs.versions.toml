@@ -7,7 +7,7 @@ junit-jupiter-engine = "5.12.1"
 kafka = "3.8.1"
 kotlinx-serialization-json = "1.11.0"
 kotlinx-coroutines = "1.11.0"
-hoplite = "2.9.0"
+hoplite = "3.0.0"
 logback = "1.6.5"
 kotlin-logging = "7.0.7"
 
