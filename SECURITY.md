@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-This is an actively developed portfolio project. Only the latest `main` branch
+This project is under active development. Only the latest `main` branch
 receives security fixes.
 
 ## Reporting a vulnerability
