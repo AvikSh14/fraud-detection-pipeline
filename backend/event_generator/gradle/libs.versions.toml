@@ -9,7 +9,7 @@ kotlinx-serialization-json = "1.11.0"
 kotlinx-coroutines = "1.11.0"
 hoplite = "2.9.0"
 logback = "1.6.5"
-kotlin-logging = "7.0.7"
+kotlin-logging = "8.0.4"
 
 [libraries]
 junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit-jupiter-engine" }
