@@ -1,5 +1,7 @@
 # Real Time Fraud Detection Pipeline
 
+[![CI](https://github.com/AvikSh14/fraud-detection-pipeline/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AvikSh14/fraud-detection-pipeline/actions/workflows/ci.yml)
+
 A streaming data platform that models how payment companies catch fraudulent
 transactions the moment they occur. A Kotlin service generates a realistic stream
 of card transactions into Apache Kafka. An Apache Flink job reads that stream and
