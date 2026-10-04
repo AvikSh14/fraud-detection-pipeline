@@ -22,14 +22,14 @@ jobs:
       dashboard: ${{ steps.dashboard.outputs.dashboard }}
     steps:
       - uses: actions/checkout@v7
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: backend
         with:
           filters: |
             api_service: ['backend/api_service/**', '.github/workflows/ci.yml']
             event_generator: ['backend/event_generator/**', '.github/workflows/ci.yml']
             flink_processor: ['backend/flink_processor/**', '.github/workflows/ci.yml']
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: dashboard
         with:
           filters: |
