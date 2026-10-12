@@ -91,4 +91,3 @@ class AlertServiceTest {
     private fun historyOf(alertId: UUID) = alertStatusHistoryRepository.findByAlertIdOrderByChangedAtAsc(alertId)
         .map { change -> Triple(change.previousStatus, change.newStatus, change.changedBy) }
 }
-

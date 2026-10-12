@@ -8,6 +8,8 @@ import com.pipeline.api.alert.domain.AlertVersionMismatchException
 import com.pipeline.api.alert.domain.InvalidStatusTransitionException
 import com.pipeline.api.alert.repository.AlertRepository
 import com.pipeline.api.alert.repository.AlertStatusHistoryRepository
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
@@ -30,9 +32,8 @@ class AlertService(
         changedBy: String,
         ) : Alert {
 
-        val alert = alertRepository.findById(alertId).orElseThrow {
-            AlertNotFoundException(alertId)
-        }
+        val alert = findAlert(alertId)
+
         if (alert.version != expectedVersion) {
             throw AlertVersionMismatchException(
                 alertId = alertId,
@@ -65,4 +66,22 @@ class AlertService(
 
         return alert
     }
+
+    @Transactional(readOnly = true)
+    fun getAlert(alertId: UUID): Alert = findAlert(alertId)
+
+    @Transactional(readOnly = true)
+    fun listAlerts(status: AlertStatus?, pageable: Pageable): Page<Alert> {
+        return if (status == null) alertRepository.findAll(pageable)
+        else alertRepository.findByStatus(status, pageable)
+    }
+
+    @Transactional(readOnly = true)
+    fun getStatusHistory(alertId: UUID): List<AlertStatusHistory> {
+        if (!alertRepository.existsById(alertId)) throw AlertNotFoundException(alertId)
+        return alertStatusHistoryRepository.findByAlertIdOrderByChangedAtAsc(alertId)
+    }
+
+    private fun findAlert(alertId: UUID): Alert =
+        alertRepository.findById(alertId).orElseThrow { AlertNotFoundException(alertId) }
 }

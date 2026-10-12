@@ -6,5 +6,13 @@ spring:
     username: fraud_pipeline
     password: fraud_pipeline
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: validate
+  mvc:
+    problemdetails:
+      enabled: true
+  data:
+    web:
+      pageable:
+        max-page-size: 100
