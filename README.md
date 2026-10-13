@@ -15,9 +15,10 @@ as it grows: typed and validated configuration, explicit delivery guarantees,
 tests, versioned database migrations, protected branches, and a proper review
 workflow.
 
-> Status: active development. The transaction generator, local Kafka setup, and the
-> API service scaffold work today. The alert database schema is in progress. The
-> Flink processor and the dashboard are next.
+> Status: active development. The local Kafka and PostgreSQL setup, the transaction
+> generator's building blocks, and the API service's alert storage, review workflow,
+> and read endpoints work today. The status change endpoint and observability are in
+> progress. The Flink processor and the dashboard come later.
 
 ## Architecture
 
@@ -82,38 +83,68 @@ today.
   * An asynchronous Kafka producer with delivery callbacks that count successful
     and failed sends in thread safe counters.
   * Unit tests using Kafka's `MockProducer`, so they run without a broker.
-* Spring Boot API service scaffold with a health check through Spring Boot
-  Actuator.
-* Repository hardening: branch rulesets, automated dependency updates, secret
-  scanning that blocks leaked credentials before they are pushed, and a security
-  disclosure policy.
+* PostgreSQL 16 in Docker Compose next to Kafka, with its data in a named volume.
+* Alert storage in the API service (Spring Boot 4, Kotlin, Hibernate 7):
+  * Schema managed by four Flyway migrations: the `alerts` table, an append only
+    `alert_status_history` audit table, a version column for optimistic locking,
+    and a database trigger that rejects any update to history rows, so the audit
+    trail cannot be changed by any client.
+  * JPA entities and Spring Data repositories. Optimistic locking with `@Version`
+    rejects stale writes instead of silently overwriting them.
+* Alert review workflow: an explicit state machine (`NEW` to `IN_REVIEW` to
+  `CONFIRMED_FRAUD` or `FALSE_POSITIVE`). A status change checks the allowed
+  transition and the expected version, and writes the audit row in the same
+  database transaction.
+* REST read API:
+  * `GET /alerts`: paged list, newest first, with an optional status filter.
+  * `GET /alerts/{id}`: one alert with an `ETag` header, answering
+    `304 Not Modified` when the client's copy is current.
+  * `GET /alerts/{id}/history`: the alert's status changes in order.
+  * Errors returned as RFC 9457 Problem Details (`application/problem+json`).
+* 30 automated tests in the API service: repository tests against a real
+  PostgreSQL through Testcontainers, controller tests with `@WebMvcTest`, service
+  tests, and a test that keeps the Kotlin status enum and the database constraints
+  in sync.
+* Continuous integration with GitHub Actions: each pull request builds and tests
+  only the Gradle modules it changed, lints and builds the dashboard, and reports
+  one aggregate check that branch protection requires.
+* Repository hardening: branch rulesets, CodeQL code scanning, grouped automated
+  dependency updates, secret scanning that blocks leaked credentials before they
+  are pushed, and a security disclosure policy.
 
 ### In progress
 
+* `PATCH /alerts/{id}/status`: moves an alert through the review workflow. The
+  client must send the `ETag` it received in an `If-Match` header, so two analysts
+  editing the same alert cannot overwrite each other's change (`412` for a stale
+  version, `428` when the header is missing, `409` for a forbidden transition).
+* Observability for the API service: liveness and readiness probes, Prometheus
+  metrics including a business metric for status changes, request IDs in every
+  log line, and structured JSON logs.
 * Turning the generator into a real streaming service: wiring in the
   configuration and asynchronous producer above, a configurable send rate driven
   by coroutines, clean shutdown, and periodic throughput logging built on the
   delivery counters.
-* Alert storage for the API service. Done so far: PostgreSQL in Docker Compose,
-  Spring Data JPA and Flyway set up, and the first migration creating the
-  `alerts` table. Remaining: an append only `alert_status_history` audit table,
-  JPA entities and repositories, and repository tests against a real database
-  with Testcontainers.
 
 ### Next
 
+* Prometheus and Grafana dashboards, an alert rule, and a runbook.
+* A Docker image for the API service, run in Docker Compose and built in CI.
+* Alert ingestion in the API service: a Kafka consumer that writes alerts to
+  PostgreSQL without duplicates, retries transient failures, and sends
+  unprocessable messages to a dead-letter topic.
+* A transactional outbox, so confirmed fraud events are published reliably after
+  the database commit.
+* Idempotency keys for endpoints that create data, so a retried request never
+  creates a duplicate.
+* JWT authentication and role based access with Spring Security.
+* AWS infrastructure with Terraform, developed against a local AWS emulator.
 * Publishing ground truth fraud labels on a dedicated Kafka topic so accuracy can
   be evaluated later.
 * Realistic per card spending behaviour and injected fraud attack patterns such as
   card testing, account takeover, and impossible travel between locations.
-* A control API so attack simulations can be started and tuned live from the
-  dashboard.
 * The Apache Flink detection job, publishing alerts to Kafka.
-* Alert ingestion in the API service: a Kafka consumer that writes alerts to
-  PostgreSQL, scaling across instances with consumer groups.
-* The REST API the dashboard calls, followed by JWT authentication with Spring
-  Security.
-* The Next.js dashboard.
+* The Next.js dashboard, with controls to launch attack simulations.
 
 ## Tech stack
 
@@ -121,13 +152,14 @@ today.
 | --- | --- |
 | Languages and runtime | Kotlin, Kotlin Coroutines (in progress), JVM 21 |
 | Streaming and messaging | Apache Kafka in KRaft mode, Apache Flink (planned) |
-| Backend services | Spring Boot, Spring Boot Actuator, Spring Data JPA (in progress) |
-| Storage | PostgreSQL and Flyway (in progress) |
+| Backend services | Spring Boot 4, Spring Web MVC, Spring Data JPA, Hibernate 7, Spring Boot Actuator |
+| Storage | PostgreSQL 16, Flyway |
 | Frontend | Next.js, TypeScript, React, Tailwind CSS |
 | Build and tooling | Gradle with the Kotlin DSL and version catalogs, Hoplite, kotlinx.serialization, kotlin-logging |
 | Infrastructure | Docker, Docker Compose |
-| Testing | JUnit 5, kotlin-test, Kafka MockProducer, Testcontainers (planned) |
-| Practices | Conventional Commits, pull request workflow with protected branches, automated dependency updates, CI (planned) |
+| Testing | JUnit 5, kotlin-test, Mockito, MockMvc, Testcontainers, Kafka MockProducer |
+| CI and repository | GitHub Actions, CodeQL, Dependabot, secret scanning with push protection |
+| Practices | Pull request workflow with protected branches, optimistic locking, versioned migrations, RFC 9457 error responses |
 
 ## Repository layout
 
@@ -175,13 +207,22 @@ docker compose exec kafka kafka-console-consumer \
   --bootstrap-server localhost:9092 --topic transactions --from-beginning
 ```
 
-Run the API service and check its health. Once alert storage lands, the service
-also needs the PostgreSQL container from the infrastructure step to be running.
+Run the API service. It needs the PostgreSQL container from the infrastructure
+step, and Flyway applies the migrations on startup.
 
 ```bash
 cd backend/api_service
 ./gradlew bootRun
 curl http://localhost:8080/actuator/health
+curl "http://localhost:8080/alerts?status=NEW&page=0&size=20"
+```
+
+Run the API service's tests. Docker must be running, because Testcontainers
+starts a throwaway PostgreSQL for them.
+
+```bash
+cd backend/api_service
+./gradlew test
 ```
 
 Stop the infrastructure when you are done:
