@@ -3,10 +3,12 @@ package com.pipeline.api.alert.web
 import com.pipeline.api.alert.domain.Alert
 import com.pipeline.api.alert.domain.AlertNotFoundException
 import com.pipeline.api.alert.domain.AlertStatus
+import com.pipeline.api.alert.domain.AlertVersionMismatchException
 import com.pipeline.api.alert.newAlert
 import com.pipeline.api.alert.newStatusChange
 import com.pipeline.api.alert.service.AlertService
 import org.mockito.BDDMockito.given
+import org.mockito.Mockito.verifyNoInteractions
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
 import org.springframework.data.domain.PageImpl
@@ -18,6 +20,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.util.ReflectionTestUtils
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
+import org.springframework.test.web.servlet.patch
 import java.util.UUID
 import kotlin.test.Test
 
@@ -89,6 +92,56 @@ class AlertControllerTest {
             jsonPath("$[0].previousStatus") { value("NEW") }
             jsonPath("$[0].newStatus") { value("IN_REVIEW") }
         }
+    }
+
+    @Test
+    fun `changes the status and returns the new version as the ETag`() {
+        val changedAlert = savedAlert(version = 4).apply { status = AlertStatus.IN_REVIEW }
+        given(alertService.changeStatus(
+            alertId = changedAlert.id,
+            targetStatus = AlertStatus.IN_REVIEW,
+            expectedVersion = 3L,
+            changedBy = "unknown",
+        )).willReturn(changedAlert)
+
+        mockMvc.patch("/alerts/{alertId}/status", changedAlert.id) {
+            header(HttpHeaders.IF_MATCH, "\"3\"")
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"status": "IN_REVIEW"}"""
+        }.andExpect {
+            status { isOk() }
+            header { string(HttpHeaders.ETAG, "\"4\"") }
+            jsonPath("$.status") { value("IN_REVIEW") }
+        }
+    }
+
+    @Test
+    fun `returns 412 when the If-Match version is stale`() {
+        val alertId = UUID.randomUUID()
+        given(alertService.changeStatus(alertId, AlertStatus.IN_REVIEW, 3L, "unknown"))
+            .willThrow(AlertVersionMismatchException(alertId, expectedVersion = 3L, currentVersion = 4L))
+
+        mockMvc.patch("/alerts/{alertId}/status", alertId) {
+            header(HttpHeaders.IF_MATCH, "\"3\"")
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"status": "IN_REVIEW"}"""
+        }.andExpect {
+            status { isPreconditionFailed() }
+            content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+            jsonPath("$.currentVersion") { value(4) }
+        }
+    }
+
+    @Test
+    fun `returns 428 when the If-Match header is missing`() {
+        mockMvc.patch("/alerts/{alertId}/status", UUID.randomUUID()) {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"status": "IN_REVIEW"}"""
+        }.andExpect {
+            status { isPreconditionRequired() }
+        }
+
+        verifyNoInteractions(alertService)
     }
 
     // A loaded alert always has a version, but only Hibernate can set it (protected setter)
