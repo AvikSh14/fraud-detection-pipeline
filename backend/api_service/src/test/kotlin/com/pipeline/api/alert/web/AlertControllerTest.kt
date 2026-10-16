@@ -17,6 +17,7 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.util.ReflectionTestUtils
 import org.springframework.test.web.servlet.MockMvc
@@ -28,8 +29,11 @@ import kotlin.test.Test
 @WebMvcTest(AlertController::class)
 class AlertControllerTest {
 
-    @Autowired lateinit var mockMvc: MockMvc
-    @MockitoBean lateinit var alertService: AlertService
+    @Autowired
+    lateinit var mockMvc: MockMvc
+
+    @MockitoBean
+    lateinit var alertService: AlertService
 
     @Test
     fun `lists alerts with the default paging, newest first`() {
@@ -98,18 +102,16 @@ class AlertControllerTest {
     @Test
     fun `changes the status and returns the new version as the ETag`() {
         val changedAlert = savedAlert(version = 4).apply { status = AlertStatus.IN_REVIEW }
-        given(alertService.changeStatus(
-            alertId = changedAlert.id,
-            targetStatus = AlertStatus.IN_REVIEW,
-            expectedVersion = 3L,
-            changedBy = "unknown",
-        )).willReturn(changedAlert)
+        given(
+            alertService.changeStatus(
+                alertId = changedAlert.id,
+                targetStatus = AlertStatus.IN_REVIEW,
+                expectedVersion = 3L,
+                changedBy = "unknown",
+            )
+        ).willReturn(changedAlert)
 
-        mockMvc.patch("/alerts/{alertId}/status", changedAlert.id) {
-            header(HttpHeaders.IF_MATCH, "\"3\"")
-            contentType = MediaType.APPLICATION_JSON
-            content = """{"status": "IN_REVIEW"}"""
-        }.andExpect {
+        patchStatus(changedAlert.id, "IN_REVIEW", "\"3\"").andExpect {
             status { isOk() }
             header { string(HttpHeaders.ETAG, "\"4\"") }
             jsonPath("$.status") { value("IN_REVIEW") }
@@ -122,23 +124,17 @@ class AlertControllerTest {
         given(alertService.changeStatus(alertId, AlertStatus.IN_REVIEW, 3L, "unknown"))
             .willThrow(AlertVersionMismatchException(alertId, expectedVersion = 3L, currentVersion = 4L))
 
-        mockMvc.patch("/alerts/{alertId}/status", alertId) {
-            header(HttpHeaders.IF_MATCH, "\"3\"")
-            contentType = MediaType.APPLICATION_JSON
-            content = """{"status": "IN_REVIEW"}"""
-        }.andExpect {
-            status { isPreconditionFailed() }
-            content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
-            jsonPath("$.currentVersion") { value(4) }
-        }
+        patchStatus(alertId, "IN_REVIEW", "\"3\"")
+            .andExpect {
+                status { isPreconditionFailed() }
+                content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+                jsonPath("$.currentVersion") { value(4) }
+            }
     }
 
     @Test
     fun `returns 428 when the If-Match header is missing`() {
-        mockMvc.patch("/alerts/{alertId}/status", UUID.randomUUID()) {
-            contentType = MediaType.APPLICATION_JSON
-            content = """{"status": "IN_REVIEW"}"""
-        }.andExpect {
+        patchStatus(UUID.randomUUID(), "IN_REVIEW").andExpect {
             status { isPreconditionRequired() }
         }
 
@@ -148,12 +144,14 @@ class AlertControllerTest {
     @Test
     fun `returns 409 when the status transition is not allowed`() {
         val alertId = UUID.randomUUID()
-        given(alertService.changeStatus(
-            alertId = alertId,
-            targetStatus = AlertStatus.CONFIRMED_FRAUD,
-            expectedVersion = 0L,
-            changedBy = "unknown",
-        )).willThrow(InvalidStatusTransitionException(AlertStatus.NEW, AlertStatus.CONFIRMED_FRAUD))
+        given(
+            alertService.changeStatus(
+                alertId = alertId,
+                targetStatus = AlertStatus.CONFIRMED_FRAUD,
+                expectedVersion = 0L,
+                changedBy = "unknown",
+            )
+        ).willThrow(InvalidStatusTransitionException(AlertStatus.NEW, AlertStatus.CONFIRMED_FRAUD))
 
         patchStatus(alertId, "CONFIRMED_FRAUD", ifMatch = "\"0\"").andExpect {
             status { isConflict() }
@@ -175,6 +173,22 @@ class AlertControllerTest {
             status { isBadRequest() }
         }
         verifyNoInteractions(alertService)
+    }
+
+    @Test
+    fun `returns 412 when a concurrent change wins the database race`() {
+        val alertId = UUID.randomUUID()
+        given(alertService.changeStatus(
+            alertId = alertId,
+            targetStatus = AlertStatus.IN_REVIEW,
+            expectedVersion = 0L,
+            changedBy = "unknown",
+        )).willThrow(ObjectOptimisticLockingFailureException(Alert::class.java, alertId))
+
+        patchStatus(alertId, "IN_REVIEW", ifMatch = "\"0\"").andExpect {
+            status { isPreconditionFailed() }
+            content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+        }
     }
 
     // A loaded alert always has a version, but only Hibernate can set it (protected setter)
