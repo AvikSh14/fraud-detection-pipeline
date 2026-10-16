@@ -4,6 +4,7 @@ import com.pipeline.api.alert.domain.Alert
 import com.pipeline.api.alert.domain.AlertNotFoundException
 import com.pipeline.api.alert.domain.AlertStatus
 import com.pipeline.api.alert.domain.AlertVersionMismatchException
+import com.pipeline.api.alert.domain.InvalidStatusTransitionException
 import com.pipeline.api.alert.newAlert
 import com.pipeline.api.alert.newStatusChange
 import com.pipeline.api.alert.service.AlertService
@@ -144,7 +145,46 @@ class AlertControllerTest {
         verifyNoInteractions(alertService)
     }
 
+    @Test
+    fun `returns 409 when the status transition is not allowed`() {
+        val alertId = UUID.randomUUID()
+        given(alertService.changeStatus(
+            alertId = alertId,
+            targetStatus = AlertStatus.CONFIRMED_FRAUD,
+            expectedVersion = 0L,
+            changedBy = "unknown",
+        )).willThrow(InvalidStatusTransitionException(AlertStatus.NEW, AlertStatus.CONFIRMED_FRAUD))
+
+        patchStatus(alertId, "CONFIRMED_FRAUD", ifMatch = "\"0\"").andExpect {
+            status { isConflict() }
+            jsonPath("$.currentStatus") { value("NEW") }
+        }
+    }
+
+    @Test
+    fun `rejects a weak If-Match tag`() {
+        patchStatus(UUID.randomUUID(), "IN_REVIEW", ifMatch = "W/\"3\"").andExpect {
+            status { isBadRequest() }
+        }
+        verifyNoInteractions(alertService)
+    }
+
+    @Test
+    fun `rejects an unknown status in the body`() {
+        patchStatus(UUID.randomUUID(), "DONE", ifMatch = "\"3\"").andExpect {
+            status { isBadRequest() }
+        }
+        verifyNoInteractions(alertService)
+    }
+
     // A loaded alert always has a version, but only Hibernate can set it (protected setter)
     private fun savedAlert(version: Long = 0): Alert =
         newAlert().also { ReflectionTestUtils.setField(it, "version", version) }
+
+    private fun patchStatus(alertId: UUID, status: String, ifMatch: String? = null) =
+        mockMvc.patch("/alerts/{alertId}/status", alertId) {
+            ifMatch?.let { header(HttpHeaders.IF_MATCH, it) }
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"status": "$status"}"""
+        }
 }
