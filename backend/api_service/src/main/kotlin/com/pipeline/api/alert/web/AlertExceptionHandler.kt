@@ -5,6 +5,7 @@ import com.pipeline.api.alert.domain.AlertVersionMismatchException
 import com.pipeline.api.alert.domain.InvalidStatusTransitionException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
+import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 
@@ -47,5 +48,16 @@ class AlertExceptionHandler {
         ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.message ?: "Invalid If-Match header").apply {
             title = "Invalid If-Match header"
             setProperty("ifMatch", exception.headerValue)
+        }
+
+    // Two requests passed the service's version check at the same instant; the database's
+    // UPDATE ... WHERE version = ? let only one commit. Same meaning as a stale If-Match, so also 412.
+    @ExceptionHandler(ObjectOptimisticLockingFailureException::class)
+    fun handleConcurrentUpdate(exception: ObjectOptimisticLockingFailureException): ProblemDetail =
+        ProblemDetail.forStatusAndDetail(
+            HttpStatus.PRECONDITION_FAILED,
+            "The alert was changed by another request at the same time",
+        ).apply {
+            title = "Alert was changed by someone else"
         }
 }
