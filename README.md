@@ -101,7 +101,12 @@ today.
     `304 Not Modified` when the client's copy is current.
   * `GET /alerts/{id}/history`: the alert's status changes in order.
   * Errors returned as RFC 9457 Problem Details (`application/problem+json`).
-* 30 automated tests in the API service: repository tests against a real
+* `PATCH /alerts/{id}/status`: moves an alert through the review workflow. The
+  client must send the `ETag` it received in an `If-Match` header, so two analysts
+  editing the same alert cannot overwrite each other's change (`412` for a stale
+  version, `428` when the header is missing, `409` for a forbidden transition).
+  An integration test against a real PostgreSQL proves a lost update is refused.
+* 38 automated tests in the API service: repository tests against a real
   PostgreSQL through Testcontainers, controller tests with `@WebMvcTest`, service
   tests, and a test that keeps the Kotlin status enum and the database constraints
   in sync.
@@ -114,10 +119,6 @@ today.
 
 ### In progress
 
-* `PATCH /alerts/{id}/status`: moves an alert through the review workflow. The
-  client must send the `ETag` it received in an `If-Match` header, so two analysts
-  editing the same alert cannot overwrite each other's change (`412` for a stale
-  version, `428` when the header is missing, `409` for a forbidden transition).
 * Observability for the API service: liveness and readiness probes, Prometheus
   metrics including a business metric for status changes, request IDs in every
   log line, and structured JSON logs.
