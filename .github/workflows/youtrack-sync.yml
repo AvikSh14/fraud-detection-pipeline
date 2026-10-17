@@ -1,0 +1,109 @@
+name: YouTrack sync
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      YOUTRACK_URL: ${{ vars.YOUTRACK_URL }}
+      YOUTRACK_TOKEN: ${{ secrets.YOUTRACK_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+      EVENT_NAME: ${{ github.event_name }}
+      PR_ACTION: ${{ github.event.action }}
+      PR_MERGED: ${{ github.event.pull_request.merged }}
+      PR_URL: ${{ github.event.pull_request.html_url }}
+      PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+      RUN_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      RUN_EVENT: ${{ github.event.workflow_run.event }}
+      RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+      RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      RUN_URL: ${{ github.event.workflow_run.html_url }}
+      RUN_HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+    steps:
+      - name: Sync ticket stage
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$YOUTRACK_TOKEN" || -z "$YOUTRACK_URL" ]]; then
+            echo "YouTrack token or URL not available (fork PR?), skipping."
+            exit 0
+          fi
+
+          branch="$PR_BRANCH"
+          [[ "$EVENT_NAME" == "workflow_run" ]] && branch="$RUN_BRANCH"
+
+          if [[ ! "$branch" =~ (FDF-[0-9]+) ]]; then
+            echo "No ticket ID in branch '$branch', skipping."
+            exit 0
+          fi
+          issue="${BASH_REMATCH[1]}"
+
+          youtrack_post() {
+            curl --fail-with-body --silent --show-error \
+              --request POST "$YOUTRACK_URL/api/$1" \
+              --header "Authorization: Bearer $YOUTRACK_TOKEN" \
+              --header "Content-Type: application/json" \
+              --data "$2"
+          }
+          set_stage() {
+            youtrack_post commands "$(jq -n --arg query "Stage $1" --arg issue "$issue" \
+              '{query: $query, issues: [{idReadable: $issue}]}')"
+          }
+          add_comment() {
+            youtrack_post "issues/$issue/comments" "$(jq -n --arg text "$1" '{text: $text}')"
+          }
+
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            case "$PR_ACTION" in
+              opened|reopened)
+                set_stage Review
+                add_comment "Pull request opened: $PR_URL" ;;
+              synchronize)
+                set_stage Review ;;
+              closed)
+                set_stage Done
+                if [[ "$PR_MERGED" == "true" ]]; then
+                  add_comment "Pull request merged: $PR_URL"
+                else
+                  add_comment "Pull request closed without merging (won't do): $PR_URL"
+                fi ;;
+            esac
+            exit 0
+          fi
+
+          if [[ "$RUN_EVENT" != "pull_request" || "$RUN_HEAD_REPOSITORY" != "$GITHUB_REPOSITORY" ]]; then
+            echo "CI run was not for a pull request from this repository, skipping."
+            exit 0
+          fi
+
+          open_pull_request_head=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$branch" \
+            --state open --json headRefOid --jq '.[0].headRefOid // ""')
+          if [[ -z "$open_pull_request_head" ]]; then
+            echo "No open PR for '$branch' (already merged or closed), skipping."
+            exit 0
+          fi
+          if [[ "$open_pull_request_head" != "$RUN_HEAD_SHA" ]]; then
+            echo "CI ran on $RUN_HEAD_SHA but the PR head is now $open_pull_request_head, skipping."
+            exit 0
+          fi
+
+          case "$RUN_CONCLUSION" in
+            success)
+              set_stage Test
+              add_comment "CI passed, ready to merge: $RUN_URL" ;;
+            failure|timed_out|startup_failure)
+              set_stage Review
+              add_comment "CI failed, ticket stays in Review. Check whether the cause is the code or the CI infrastructure (flaky test, runner overload): $RUN_URL" ;;
+            *)
+              echo "CI conclusion '$RUN_CONCLUSION', no change." ;;
+          esac
