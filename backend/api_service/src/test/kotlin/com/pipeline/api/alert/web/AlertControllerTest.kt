@@ -12,6 +12,8 @@ import org.mockito.BDDMockito.given
 import org.mockito.Mockito.verifyNoInteractions
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
+import org.springframework.data.core.PropertyReferenceException
+import org.springframework.data.core.TypeInformation
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
@@ -178,17 +180,33 @@ class AlertControllerTest {
     @Test
     fun `returns 412 when a concurrent change wins the database race`() {
         val alertId = UUID.randomUUID()
-        given(alertService.changeStatus(
-            alertId = alertId,
-            targetStatus = AlertStatus.IN_REVIEW,
-            expectedVersion = 0L,
-            changedBy = "unknown",
-        )).willThrow(ObjectOptimisticLockingFailureException(Alert::class.java, alertId))
+        given(
+            alertService.changeStatus(
+                alertId = alertId,
+                targetStatus = AlertStatus.IN_REVIEW,
+                expectedVersion = 0L,
+                changedBy = "unknown",
+            )
+        ).willThrow(ObjectOptimisticLockingFailureException(Alert::class.java, alertId))
 
         patchStatus(alertId, "IN_REVIEW", ifMatch = "\"0\"").andExpect {
             status { isPreconditionFailed() }
             content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
         }
+    }
+
+    @Test
+    fun `returns 400 for an unknown sort property`() {
+        val unknownSortPage = PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "unknownField"))
+        given(alertService.listAlerts(null, unknownSortPage))
+            .willThrow(PropertyReferenceException("unknownField", TypeInformation.of(Alert::class.java), emptyList()))
+
+        mockMvc.get("/alerts") { param("sort", "unknownField") }
+            .andExpect {
+                status { isBadRequest() }
+                content { contentType(MediaType.APPLICATION_PROBLEM_JSON) }
+                jsonPath("$.property") { value("unknownField") }
+            }
     }
 
     // A loaded alert always has a version, but only Hibernate can set it (protected setter)
