@@ -3,6 +3,7 @@ package com.pipeline.api.alert.web
 import com.pipeline.api.alert.domain.AlertNotFoundException
 import com.pipeline.api.alert.domain.AlertVersionMismatchException
 import com.pipeline.api.alert.domain.InvalidStatusTransitionException
+import org.springframework.data.core.PropertyReferenceException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
 import org.springframework.orm.ObjectOptimisticLockingFailureException
@@ -59,5 +60,14 @@ class AlertExceptionHandler {
             "The alert was changed by another request at the same time",
         ).apply {
             title = "Alert was changed by someone else"
+        }
+
+    // Sort fields come straight from the query string (?sort=unknownField). A field Alert doesn't
+    // have is the client's mistake, so 400 instead of the default 500.
+    @ExceptionHandler(PropertyReferenceException::class)
+    fun handleUnknownSortProperty(exception: PropertyReferenceException): ProblemDetail =
+        ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Unknown sort property '${exception.propertyName}'").apply {
+            title = "Invalid sort property"
+            setProperty("property", exception.propertyName)
         }
 }
