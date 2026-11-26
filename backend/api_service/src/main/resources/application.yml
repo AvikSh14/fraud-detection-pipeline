@@ -16,6 +16,13 @@ spring:
     web:
       pageable:
         max-page-size: 100
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+logging:
+  structured:
+    format:
+      console: ecs
 
 management:
   endpoints:
