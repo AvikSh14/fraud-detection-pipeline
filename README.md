@@ -106,7 +106,12 @@ today.
   editing the same alert cannot overwrite each other's change (`412` for a stale
   version, `428` when the header is missing, `409` for a forbidden transition).
   An integration test against a real PostgreSQL proves a lost update is refused.
-* 38 automated tests in the API service: repository tests against a real
+* Observability: liveness and readiness probes (readiness includes the
+  database), Prometheus metrics with an `alerts.status.changes` counter that only
+  counts committed changes, a request ID in each request's log lines and in the
+  response, JSON logs in ECS (Elastic Common Schema) format under the `prod`
+  profile, and graceful shutdown with a 20 second timeout.
+* 49 automated tests in the API service: repository tests against a real
   PostgreSQL through Testcontainers, controller tests with `@WebMvcTest`, service
   tests, and a test that keeps the Kotlin status enum and the database constraints
   in sync.
