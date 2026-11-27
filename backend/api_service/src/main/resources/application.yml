@@ -16,3 +16,17 @@ spring:
     web:
       pageable:
         max-page-size: 100
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState, db
+          

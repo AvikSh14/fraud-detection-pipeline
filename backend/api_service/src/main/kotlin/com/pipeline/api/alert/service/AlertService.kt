@@ -3,11 +3,13 @@ package com.pipeline.api.alert.service
 import com.pipeline.api.alert.domain.Alert
 import com.pipeline.api.alert.domain.AlertNotFoundException
 import com.pipeline.api.alert.domain.AlertStatus
+import com.pipeline.api.alert.domain.AlertStatusChangedEvent
 import com.pipeline.api.alert.domain.AlertStatusHistory
 import com.pipeline.api.alert.domain.AlertVersionMismatchException
 import com.pipeline.api.alert.domain.InvalidStatusTransitionException
 import com.pipeline.api.alert.repository.AlertRepository
 import com.pipeline.api.alert.repository.AlertStatusHistoryRepository
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
@@ -21,7 +23,8 @@ import java.util.UUID
 class AlertService(
     private val alertRepository: AlertRepository,
     private val alertStatusHistoryRepository: AlertStatusHistoryRepository,
-    private val clock: Clock
+    private val clock: Clock,
+    private val applicationEventPublisher: ApplicationEventPublisher,
 ) {
 
     @Transactional
@@ -62,6 +65,9 @@ class AlertService(
                 changedBy = changedBy,
                 changedAt = now
             )
+        )
+        applicationEventPublisher.publishEvent(
+            AlertStatusChangedEvent(alertId = alertId, previousStatus = previousStatus, newStatus = targetStatus)
         )
 
         return alert
