@@ -19,11 +19,6 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 20s
 
-logging:
-  structured:
-    format:
-      console: ecs
-
 management:
   endpoints:
     web:
